@@ -1,0 +1,12 @@
+# 示例产品的 GitLab 侧检查。镜像构建和推送以 Jenkinsfile 为准。
+# 交付代理触发流水线时会注入 DELIVERY_ID、PRODUCT_NAME、TARGET_ENV、IMAGE。
+
+stages:
+  - test
+
+test:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - python -m py_compile app.py
+    - echo "delivery ${DELIVERY_ID:-manual} product ${PRODUCT_NAME:-sample-product} env ${TARGET_ENV:-unset}"

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>交付台 · Delivery Agent</title>
+  <style>
+    :root {
+      --bg: #e7efe8;
+      --ink: #17211b;
+      --muted: #5d6b62;
+      --line: #c9d5cc;
+      --card: #f7fbf8;
+      --accent: #0f6a45;
+      --accent-ink: #083824;
+      --good: #146b3a;
+      --good-bg: #e5f6ea;
+      --bad: #8e2d2d;
+      --bad-bg: #fdecec;
+      --run: #1d4f86;
+      --run-bg: #e7f0fb;
+      --wait: #8a5a12;
+      --wait-bg: #fff4df;
+      --skip: #5c6570;
+      --shadow: 0 12px 30px rgba(23, 33, 27, 0.06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(15, 106, 69, 0.08), transparent 28rem),
+        var(--bg);
+      font-family: "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.5;
+    }
+    header, main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 28px 0 12px; }
+    .brand { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 32px; letter-spacing: -0.04em; }
+    h1 span { color: var(--accent); }
+    .sub { margin: 6px 0 0; color: var(--muted); }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip {
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 13px;
+    }
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    h2 { margin: 0 0 12px; font-size: 18px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--ink);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+    }
+    textarea { min-height: 88px; resize: vertical; }
+    button {
+      font: inherit;
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    .actions { display: flex; gap: 8px; margin-top: 16px; align-items: center; }
+    .ghost { background: transparent; color: var(--accent-ink); border: 1px solid var(--line); }
+    .hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+    .banner { display: none; margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--bad-bg); color: var(--bad); }
+    .banner.show { display: block; }
+    .list { display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
+    .item {
+      text-align: left;
+      background: white;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      width: 100%;
+    }
+    .item.active { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+    .item strong { display: block; }
+    .meta { color: var(--muted); font-size: 13px; }
+    .status {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 12px;
+      margin-left: 6px;
+    }
+    .status.pending { background: var(--wait-bg); color: var(--wait); }
+    .status.running { background: var(--run-bg); color: var(--run); }
+    .status.succeeded { background: var(--good-bg); color: var(--good); }
+    .status.failed { background: var(--bad-bg); color: var(--bad); }
+    .status.skipped { background: #eef1f4; color: var(--skip); }
+    .detail { margin: 16px 0 40px; }
+    .steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 12px 0; }
+    .step { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: white; min-height: 92px; }
+    .step b { display: block; font-size: 13px; }
+    .step p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #122018;
+      color: #e7f6ee;
+      border-radius: 12px;
+      padding: 12px;
+      overflow: auto;
+      font-size: 13px;
+    }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .empty { color: var(--muted); padding: 12px 0; }
+    .image { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+    @media (max-width: 860px) {
+      .layout, .split, .steps { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div>
+        <h1>交付<span>台</span></h1>
+        <p class="sub">描述一次产品交付，代理会拉动 GitLab、Jenkins 和 Docker，并留下可追踪的结果。</p>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+  </header>
+  <main>
+    <section class="layout">
+      <form class="card" id="form">
+        <h2>新建交付</h2>
+        <label for="repo">仓库路径</label>
+        <input id="repo" name="repo" required value="demo/sample-product" pattern="[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)+" autocomplete="off">
+        <label for="ref">分支或标签</label>
+        <input id="ref" name="ref" required value="main" maxlength="200">
+        <label for="product_name">产品名称</label>
+        <input id="product_name" name="product_name" required value="sample-product" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}">
+        <label for="target_environment">目标环境</label>
+        <input id="target_environment" name="target_environment" required value="staging" pattern="[a-z0-9][a-z0-9-]{0,31}">
+        <label for="instruction">补充说明</label>
+        <textarea id="instruction" name="instruction" maxlength="2000">把示例产品发布到预发环境，确认镜像坐标并给出结果说明。</textarea>
+        <div class="actions">
+          <button type="submit" id="submit">提交交付</button>
+          <button type="button" class="ghost" id="refresh">刷新</button>
+        </div>
+        <p class="hint">模拟模式不需要真实的 GitLab 或 Jenkins。仓库路径含 missing，或产品名为 broken-product，会走失败示例。</p>
+        <div class="banner" id="banner"></div>
+      </form>
+      <section class="card">
+        <h2>运行记录</h2>
+        <div class="list" id="list"></div>
+      </section>
+    </section>
+    <section class="card detail" id="detail">
+      <h2>交付详情</h2>
+      <p class="empty">选择一条记录，或提交一次新的交付。</p>
+    </section>
+  </main>
+  <script>
+    const STATUS = {
+      pending: "等待",
+      running: "执行中",
+      succeeded: "已交付",
+      failed: "失败",
+      skipped: "跳过"
+    };
+    const state = { selected: null, deliveries: [] };
+
+    const $ = (id) => document.getElementById(id);
+
+    function chip(text) {
+      const node = document.createElement("span");
+      node.className = "chip";
+      node.textContent = text;
+      return node;
+    }
+
+    function statusNode(status) {
+      const node = document.createElement("span");
+      node.className = "status " + (STATUS[status] ? status : "pending");
+      node.textContent = STATUS[status] || status;
+      return node;
+    }
+
+    function showError(message) {
+      const banner = $("banner");
+      banner.textContent = message;
+      banner.classList.add("show");
+    }
+
+    function clearError() {
+      const banner = $("banner");
+      banner.textContent = "";
+      banner.classList.remove("show");
+    }
+
+    async function readJson(response) {
+      const data = await response.json();
+      if (!response.ok) {
+        let message = "请求失败";
+        if (typeof data.detail === "string") message = data.detail;
+        else if (Array.isArray(data.detail)) message = data.detail.map((item) => item.msg).join("；");
+        throw new Error(message);
+      }
+      return data;
+    }
+
+    function renderHealth(health) {
+      const root = $("chips");
+      root.replaceChildren(
+        chip("模型 " + health.llm_provider),
+        chip("GitLab " + health.gitlab_mode),
+        chip("Jenkins " + health.jenkins_mode),
+        chip("镜像 " + health.ship_strategy),
+        chip(health.registry)
+      );
+    }
+
+    function renderList() {
+      const root = $("list");
+      root.replaceChildren();
+      if (!state.deliveries.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "还没有交付记录。";
+        root.appendChild(empty);
+        return;
+      }
+      for (const delivery of state.deliveries) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "item" + (delivery.id === state.selected ? " active" : "");
+        const title = document.createElement("strong");
+        title.textContent = delivery.product_name + " → " + delivery.target_environment;
+        title.appendChild(statusNode(delivery.status));
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = delivery.repo + "@" + delivery.ref + " · " + delivery.id;
+        button.append(title, meta);
+        button.addEventListener("click", () => {
+          state.selected = delivery.id;
+          renderList();
+          renderDetail(delivery);
+        });
+        root.appendChild(button);
+      }
+    }
+
+    function renderDetail(delivery) {
+      const root = $("detail");
+      root.replaceChildren();
+      const title = document.createElement("h2");
+      title.textContent = delivery.product_name;
+      title.appendChild(statusNode(delivery.status));
+      root.appendChild(title);
+
+      const meta = document.createElement("p");
+      meta.className = "meta";
+      meta.textContent = delivery.repo + "@" + delivery.ref + " · " + new Date(delivery.created_at).toLocaleString("zh-CN");
+      root.appendChild(meta);
+
+      if (delivery.artifact && delivery.artifact.image) {
+        const image = document.createElement("p");
+        image.className = "image";
+        image.textContent = delivery.artifact.image;
+        root.appendChild(image);
+      }
+      if (delivery.error) {
+        const error = document.createElement("p");
+        error.className = "banner show";
+        error.textContent = delivery.error;
+        root.appendChild(error);
+      }
+
+      const steps = document.createElement("div");
+      steps.className = "steps";
+      for (const stage of delivery.stages) {
+        const card = document.createElement("article");
+        card.className = "step";
+        const name = document.createElement("b");
+        name.textContent = stage.title + " ";
+        name.appendChild(statusNode(stage.status));
+        const message = document.createElement("p");
+        message.textContent = stage.message || "尚未开始";
+        card.append(name, message);
+        steps.appendChild(card);
+      }
+      root.appendChild(steps);
+
+      const split = document.createElement("div");
+      split.className = "split";
+      split.append(
+        block("计划说明", planText(delivery)),
+        block("结果日志", reportLog(delivery))
+      );
+      root.appendChild(split);
+    }
+
+    function block(title, text) {
+      const wrap = document.createElement("section");
+      const heading = document.createElement("h2");
+      heading.textContent = title;
+      const pre = document.createElement("pre");
+      pre.textContent = text;
+      wrap.append(heading, pre);
+      return wrap;
+    }
+
+    function planText(delivery) {
+      if (!delivery.plan) return "计划生成后会显示在这里。";
+      const lines = [
+        delivery.plan.summary,
+        "",
+        "来源：" + delivery.plan.source,
+        delivery.plan.rationale || ""
+      ];
+      if (delivery.plan.risks && delivery.plan.risks.length) {
+        lines.push("", "风险：", ...delivery.plan.risks.map((item) => "- " + item));
+      }
+      return lines.join("\n");
+    }
+
+    function reportLog(delivery) {
+      const report = delivery.stages.find((stage) => stage.key === "report");
+      if (report && report.log) return report.log;
+      const jenkins = delivery.stages.find((stage) => stage.key === "jenkins_build");
+      if (jenkins && jenkins.log) return jenkins.log;
+      return "执行完成后会显示汇总。";
+    }
+
+    async function refresh() {
+      const [health, deliveries] = await Promise.all([
+        fetch("/api/v1/health").then(readJson),
+        fetch("/api/v1/deliveries").then(readJson)
+      ]);
+      renderHealth(health);
+      state.deliveries = deliveries;
+      renderList();
+      if (!state.selected && deliveries[0]) state.selected = deliveries[0].id;
+      const current = deliveries.find((item) => item.id === state.selected);
+      if (current) renderDetail(current);
+    }
+
+    $("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearError();
+      const button = $("submit");
+      button.disabled = true;
+      const body = {
+        repo: $("repo").value.trim(),
+        ref: $("ref").value.trim(),
+        product_name: $("product_name").value.trim(),
+        target_environment: $("target_environment").value.trim(),
+        instruction: $("instruction").value.trim()
+      };
+      try {
+        const created = await fetch("/api/v1/deliveries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        }).then(readJson);
+        state.selected = created.id;
+        await refresh();
+      } catch (error) {
+        showError(error.message || "提交失败");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    $("refresh").addEventListener("click", () => {
+      refresh().catch((error) => showError(error.message));
+    });
+
+    refresh().catch((error) => showError(error.message));
+    setInterval(() => {
+      if (document.hidden) return;
+      refresh().catch(() => {});
+    }, 1500);
+  </script>
+</body>
+</html>

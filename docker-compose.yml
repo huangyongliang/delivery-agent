@@ -1,0 +1,84 @@
+# 默认只启动交付代理，并使用模拟的 GitLab / Jenkins / 模型。
+# 真实环境把变量指到现有实例；可选 profile 再拉起 Jenkins 或本地镜像仓库。
+#
+#   docker compose up --build
+#   docker compose --profile jenkins --profile registry up --build
+
+services:
+  agent:
+    build: .
+    ports:
+      - "${AGENT_PORT:-8080}:8080"
+    environment:
+      AGENT_HOST: 0.0.0.0
+      AGENT_PORT: 8080
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      DATABASE_PATH: /app/data/delivery-agent.db
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PIPELINE_TIMEOUT_SECONDS: ${PIPELINE_TIMEOUT_SECONDS:-600}
+      HTTP_TIMEOUT_SECONDS: ${HTTP_TIMEOUT_SECONDS:-30}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.2}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_JSON_MODE: ${OPENAI_JSON_MODE:-true}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
+      ANTHROPIC_VERSION: ${ANTHROPIC_VERSION:-2023-06-01}
+      ANTHROPIC_MAX_TOKENS: ${ANTHROPIC_MAX_TOKENS:-1024}
+      HTTP_LLM_URL: ${HTTP_LLM_URL:-}
+      HTTP_LLM_API_KEY: ${HTTP_LLM_API_KEY:-}
+      HTTP_LLM_MODEL: ${HTTP_LLM_MODEL:-generic}
+      HTTP_LLM_STYLE: ${HTTP_LLM_STYLE:-openai}
+      GITLAB_MODE: ${GITLAB_MODE:-mock}
+      GITLAB_BASE_URL: ${GITLAB_BASE_URL:-https://gitlab.example.com}
+      GITLAB_TOKEN: ${GITLAB_TOKEN:-}
+      GITLAB_WEBHOOK_TOKEN: ${GITLAB_WEBHOOK_TOKEN:-dev-gitlab-token}
+      GITLAB_TRIGGER_PIPELINE: ${GITLAB_TRIGGER_PIPELINE:-true}
+      JENKINS_MODE: ${JENKINS_MODE:-mock}
+      JENKINS_BASE_URL: ${JENKINS_BASE_URL:-http://jenkins:8080}
+      JENKINS_USER: ${JENKINS_USER:-}
+      JENKINS_TOKEN: ${JENKINS_TOKEN:-}
+      JENKINS_JOB: ${JENKINS_JOB:-delivery-pipeline}
+      JENKINS_WEBHOOK_TOKEN: ${JENKINS_WEBHOOK_TOKEN:-dev-jenkins-token}
+      JENKINS_POLL_INTERVAL_SECONDS: ${JENKINS_POLL_INTERVAL_SECONDS:-2}
+      DOCKER_MODE: ${DOCKER_MODE:-mock}
+      DOCKER_REGISTRY: ${DOCKER_REGISTRY:-localhost:5000}
+      DOCKER_NAMESPACE: ${DOCKER_NAMESPACE:-delivery}
+      DOCKER_CONTEXT: ${DOCKER_CONTEXT:-examples/sample-product}
+      DOCKER_DOCKERFILE: ${DOCKER_DOCKERFILE:-Dockerfile}
+      SHIP_STRATEGY: ${SHIP_STRATEGY:-jenkins}
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v1/health')",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  jenkins:
+    profiles: ["jenkins"]
+    image: jenkins/jenkins:2.479.3-lts-jdk17
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+
+  registry:
+    profiles: ["registry"]
+    image: registry:2
+    ports:
+      - "5000:5000"
+
+volumes:
+  jenkins_home:

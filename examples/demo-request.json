@@ -1,0 +1,7 @@
+{
+  "repo": "demo/sample-product",
+  "ref": "main",
+  "product_name": "sample-product",
+  "target_environment": "staging",
+  "instruction": "把示例产品发布到预发环境，确认镜像坐标并给出结果说明。"
+}
